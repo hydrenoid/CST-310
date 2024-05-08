@@ -10,6 +10,10 @@
 // Press space bar to rotate object.
 // Press r to reset.
 //
+// COMPILE: g++ -o SierpinskiTriangle3D SierpinskiTriangle3D.cpp -lGLEW -lGL -lGLU -lglut
+//
+// RUN: ./SierpinskiTriangle3D
+//
 // Jonathon Moore.
 ///////////////////////////////////////////////////////////////
 

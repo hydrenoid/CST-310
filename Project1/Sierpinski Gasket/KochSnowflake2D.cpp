@@ -13,6 +13,7 @@
 ///////////////////////////////////////////////////////////////
 
 #include <iostream>
+#include <cmath>
 
 #include <GL/glew.h>
 #include <GL/freeglut.h>
