@@ -9,6 +9,10 @@
 // Press the down arrow key to decrease the number of fractals.
 // Press r to reset.
 //
+// COMPILE: g++ -o KochSnowflake2D KochSnowflake2D.cpp -lGLEW -lGL -lGLU -lglut
+//
+// RUN: ./KochSnowflake2D
+//
 // Jonathon Moore.
 ///////////////////////////////////////////////////////////////
 

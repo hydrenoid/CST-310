@@ -9,8 +9,8 @@
 // Press the down arrow key to decrease the number of fractals.
 // Press r to reset.
 //
-// Compile: g++ -o SierpinskiTriangle2D SierpinskiTriangle2D.cpp -lGLEW -lGL -lGLU -lglut
-// Run: ./SierpinskiTriangle2D
+// COMPILE: g++ -o SierpinskiTriangle2D SierpinskiTriangle2D.cpp -lGLEW -lGL -lGLU -lglut
+// RUN: ./SierpinskiTriangle2D
 //
 // Jonathon Moore.
 ///////////////////////////////////////////////////////////////
