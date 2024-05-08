@@ -2,6 +2,8 @@ Jonathon Moore
 CST-310
 Professor Citro
 
+Public GitHub Link: https://github.com/hydrenoid/CST-310
+
 Objective:
 The objective of this assignment is to learn and understand basic use cases of 2D and 3D objects using OpenGL.Specifically this projects uses Sierpinskis Gasket and its relatables to connect coding knowledge with graphic display.
 
