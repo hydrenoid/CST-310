@@ -9,6 +9,9 @@
 // Press the down arrow key to decrease the number of fractals.
 // Press r to reset.
 //
+// Compile: g++ -o SierpinskiTriangle2D SierpinskiTriangle2D.cpp -lGLEW -lGL -lGLU -lglut
+// Run: ./SierpinskiTriangle2D
+//
 // Jonathon Moore.
 ///////////////////////////////////////////////////////////////
 
@@ -141,8 +144,8 @@ int main(int argc, char** argv)
 	printInteraction();
 	glutInit(&argc, argv);
 
-	glutInitContextVersion(4, 3);
-	glutInitContextProfile(GLUT_COMPATIBILITY_PROFILE);
+	//glutInitContextVersion(4, 3);
+	//glutInitContextProfile(GLUT_COMPATIBILITY_PROFILE);
 
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA);
 	glutInitWindowSize(500, 500);
