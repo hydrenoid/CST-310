@@ -144,8 +144,8 @@ int main(int argc, char** argv)
 	printInteraction();
 	glutInit(&argc, argv);
 
-	//glutInitContextVersion(4, 3);
-	//glutInitContextProfile(GLUT_COMPATIBILITY_PROFILE);
+	// glutInitContextVersion(4, 3);
+	// glutInitContextProfile(GLUT_COMPATIBILITY_PROFILE);
 
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA);
 	glutInitWindowSize(500, 500);
