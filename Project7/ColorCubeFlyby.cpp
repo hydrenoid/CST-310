@@ -25,7 +25,7 @@
 // add two cubes
 // add a plane on the left and right
 // make two new cubes bounce between the planes
-// g++ -o test test.cpp -lglut -lGL -lGLU
+// g++ -o cube ColorCubeFlyby.cpp -lglut -lGL -lGLU
 
 float angle = 0.0f;
 float cube1x = 0.0f;
