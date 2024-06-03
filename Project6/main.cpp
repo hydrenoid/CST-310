@@ -8,8 +8,6 @@
 // GLFW
 #include <GLFW/glfw3.h>
 
-// Other Libs
-//#include <SOIL.h>
 // GLM Mathematics
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -19,6 +17,7 @@
 #include "Shader.h"
 #include "Camera.h"
 
+// OpenGL 18.204
 
 // Function prototypes
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode);
@@ -78,8 +77,8 @@ int main()
 
 
     // Build and compile our shader program
-    Shader lightingShader("lighting.vs", "lighting.frag");
-    Shader lampShader("lamp.vs", "lamp.frag");
+    Shader lightingShader("/home/parallels/Desktop/CST-310/Project6/lighting.vert", "/home/parallels/Desktop/CST-310/Project6/lighting.frag");
+    Shader lampShader("/home/parallels/Desktop/CST-310/Project6/lamp.vert", "/home/parallels/Desktop/CST-310/Project6/lamp.frag");
 
     // Set up vertex data (and buffer(s)) and attribute pointers
     GLfloat vertices[] = {
@@ -152,7 +151,7 @@ int main()
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)0); // Note that we skip over the normal vectors
     glEnableVertexAttribArray(0);
     glBindVertexArray(0);
-    
+
 
     // Game loop
     while (!glfwWindowShouldClose(window))
@@ -279,4 +278,4 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
     camera.ProcessMouseScroll(yoffset);
 }
-    
+
