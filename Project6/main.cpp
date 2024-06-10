@@ -1,87 +1,115 @@
-#include <iostream>
-#include <cmath>
-
-// GLEW
-#define GLEW_STATIC
-#include <GL/glew.h>
-
-// GLFW
+#include "glad/glad.h"
 #include <GLFW/glfw3.h>
 
-// GLM Mathematics
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-// Other includes
-#include "Shader.h"
-#include "Camera.h"
+#include <SOIL/SOIL.h>
 
-// OpenGL 18.204
+#include "shader_m.h"
+#include "Numbers/NumShader.h"
+#include "camera.h"
 
-// Function prototypes
-void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode);
+#include <freetype2/ft2build.h>
+#include FT_FREETYPE_H
+
+#include <iostream>
+#include <map>
+
+void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
-void do_movement();
+void processInput(GLFWwindow *window);
+//void renderText(const std::string& text, float x, float y, float scale, const glm::vec3& color, FT_Face face);
+void renderText(Shader &shader, std::string text, float x, float y, float scale, glm::vec3 color, FT_Face face);
 
-// Window dimensions
-const GLuint WIDTH = 800, HEIGHT = 600;
+void use3DMode();
+void use2DMode();
 
-// Camera
-Camera  camera(glm::vec3(0.0f, 0.0f, 3.0f));
-GLfloat lastX  =  WIDTH  / 2.0;
-GLfloat lastY  =  HEIGHT / 2.0;
-bool    keys[1024];
+/// Holds all state information relevant to a character as loaded using FreeType
+struct Character {
+    unsigned int TextureID; // ID handle of the glyph texture
+    glm::ivec2   Size;      // Size of glyph
+    glm::ivec2   Bearing;   // Offset from baseline to left/top of glyph
+    unsigned int Advance;   // Horizontal offset to advance to next glyph
+};
 
-// Light attributes
-glm::vec3 lightPos(1.2f, 1.0f, 2.0f);
+// settings
+const unsigned int SCR_WIDTH = 800;
+const unsigned int SCR_HEIGHT = 600;
+int shininess_value = 256; // This was added by me to track the shininess queried value
 
-// Deltatime
-GLfloat deltaTime = 0.0f;	// Time between current frame and last frame
-GLfloat lastFrame = 0.0f;  	// Time of last frame
+// camera
+Camera camera(glm::vec3(0.0f, 0.0f, 10.0f));
+float lastX = SCR_WIDTH / 2.0f;
+float lastY = SCR_HEIGHT / 2.0f;
+bool firstMouse = true;
 
-// The MAIN function, from here we start the application and run the game loop
+// timing
+float deltaTime = 0.0f;	
+float lastFrame = 0.0f;
+
+// lighting
+glm::vec3 lightPos(0.0f, 0.0f, 2.0f);
+
+std::map<GLchar, Character> Characters;
+unsigned int VBO, cubeVAO, VAO;
+
+
 int main()
 {
-    // Init GLFW
+    // glfw: initialize and configure
+    // ------------------------------
     glfwInit();
-    // Set all the required options for GLFW
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
-    // Create a GLFWwindow object that we can use for GLFW's functions
-    GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "LearnOpenGL", nullptr, nullptr);
+#ifdef __APPLE__
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+#endif
+
+    // glfw window creation
+    // --------------------
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "CST-301 Project 6", NULL, NULL);
+    if (window == NULL)
+    {
+        std::cout << "Failed to create GLFW window" << std::endl;
+        glfwTerminate();
+        return -1;
+    }
     glfwMakeContextCurrent(window);
-
-    // Set the required callback functions
-    glfwSetKeyCallback(window, key_callback);
+    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetScrollCallback(window, scroll_callback);
 
-    // GLFW Options
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    // tell GLFW to capture our mouse
+    //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-    // Set this to true so GLEW knows to use a modern approach to retrieving function pointers and extensions
-    glewExperimental = GL_TRUE;
-    // Initialize GLEW to setup the OpenGL Function pointers
-    glewInit();
+    // glad: load all OpenGL function pointers
+    // ---------------------------------------
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+    {
+        std::cout << "Failed to initialize GLAD" << std::endl;
+        return -1;
+    }
 
-    // Define the viewport dimensions
-    glViewport(0, 0, WIDTH, HEIGHT);
+    // configure global opengl state
+    // -----------------------------
+    use3DMode();
+    //use2DMode();
+    glEnable(GL_CULL_FACE);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // OpenGL options
-    glEnable(GL_DEPTH_TEST);
+    // build and compile our shader zprogram
+    // ------------------------------------
+    Shader lightingShader("basic_lighting.vs", "basic_lighting.fs");
 
-
-    // Build and compile our shader program
-    Shader lightingShader("/home/parallels/Desktop/CST-310/Project6/lighting.vert", "/home/parallels/Desktop/CST-310/Project6/lighting.frag");
-    Shader lampShader("/home/parallels/Desktop/CST-310/Project6/lamp.vert", "/home/parallels/Desktop/CST-310/Project6/lamp.frag");
-
-    // Set up vertex data (and buffer(s)) and attribute pointers
-    GLfloat vertices[] = {
+    // set up vertex data (and buffer(s)) and configure vertex attributes
+    // ------------------------------------------------------------------
+    float vertices[] = {
         -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
          0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
          0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
@@ -124,140 +152,720 @@ int main()
         -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
         -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f
     };
-    // First, set the container's VAO (and VBO)
-    GLuint VBO, containerVAO;
-    glGenVertexArrays(1, &containerVAO);
+
+    // first, configure the cube's VAO (and VBO)
+    glGenVertexArrays(1, &cubeVAO);
     glGenBuffers(1, &VBO);
 
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-    glBindVertexArray(containerVAO);
-    // Position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)0);
+    glBindVertexArray(cubeVAO);
+
+    // position attribute
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
-    // Normal attribute
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
+    // normal attribute
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
-    glBindVertexArray(0);
 
-    // Then, we set the light's VAO (VBO stays the same. After all, the vertices are the same for the light object (also a 3D cube))
-    GLuint lightVAO;
-    glGenVertexArrays(1, &lightVAO);
-    glBindVertexArray(lightVAO);
-    // We only need to bind to the VBO (to link it with glVertexAttribPointer), no need to fill it; the VBO's data already contains all we need.
+
+    // second, configure the light's VAO (VBO stays the same; the vertices are the same for the light object which is also a 3D cube)
+    unsigned int lightCubeVAO;
+    glGenVertexArrays(1, &lightCubeVAO);
+    glBindVertexArray(lightCubeVAO);
+
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    // Set the vertex attributes (only position data for the lamp))
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)0); // Note that we skip over the normal vectors
+    // note that we update the lamp's position attribute's stride to reflect the updated buffer data
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
+
+    // Create a shader program for rendering text
+    Shader textShader("text.vs", "text.fs");
+    //Shader textShader("Numbers/text.vs", "Numbers/text.fs"); // Create the text shader
+    glm::mat4 projection = glm::ortho(0.0f, static_cast<float>(SCR_WIDTH), 0.0f, static_cast<float>(SCR_HEIGHT));
+    textShader.use();
+    glUniformMatrix4fv(glGetUniformLocation(textShader.ID, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+
+    // FreeType setup (provided by learnopengl.com)
+    // --------
+    FT_Library ft;
+    // All functions return a value different than 0 whenever an error occurred
+    if (FT_Init_FreeType(&ft))
+    {
+        std::cout << "ERROR::FREETYPE: Could not init FreeType Library" << std::endl;
+        return -1;
+    }
+
+	// find path to font
+    //std::string font_name = FileSystem::getPath("resources/fonts/Antonio-Bold.ttf");
+    std::string font_name = "Numbers/Roboto-Regular.ttf";
+    if (font_name.empty())
+    {
+        std::cout << "ERROR::FREETYPE: Failed to load font_name" << std::endl;
+        return -1;
+    }
+	
+	// load font as face
+    FT_Face face;
+    if (FT_New_Face(ft, font_name.c_str(), 0, &face)) {
+        std::cout << "ERROR::FREETYPE: Failed to load font" << std::endl;
+        return -1;
+    }
+    else {
+        // set size to load glyphs as
+        FT_Set_Pixel_Sizes(face, 0, 48);
+
+        // disable byte-alignment restriction
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+        // load first 128 characters of ASCII set
+        for (unsigned char c = 0; c < 128; c++)
+        {
+            // Load character glyph 
+            if (FT_Load_Char(face, c, FT_LOAD_RENDER))
+            {
+                std::cout << "ERROR::FREETYTPE: Failed to load Glyph" << std::endl;
+                continue;
+            }
+            // generate texture
+            unsigned int texture;
+            glGenTextures(1, &texture);
+            glBindTexture(GL_TEXTURE_2D, texture);
+            glTexImage2D(
+                GL_TEXTURE_2D,
+                0,
+                GL_RED,
+                face->glyph->bitmap.width,
+                face->glyph->bitmap.rows,
+                0,
+                GL_RED,
+                GL_UNSIGNED_BYTE,
+                face->glyph->bitmap.buffer
+            );
+            // set texture options
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            // now store character for later use
+            Character character = {
+                texture,
+                glm::ivec2(face->glyph->bitmap.width, face->glyph->bitmap.rows),
+                glm::ivec2(face->glyph->bitmap_left, face->glyph->bitmap_top),
+                static_cast<unsigned int>(face->glyph->advance.x)
+            };
+            Characters.insert(std::pair<char, Character>(c, character));
+        }
+        glBindTexture(GL_TEXTURE_2D, 0);
+    }
+    // destroy FreeType once we're finished
+    FT_Done_Face(face);
+    FT_Done_FreeType(ft);
+
+    
+    // configure VAO/VBO for texture quads
+    // -----------------------------------
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * 4, NULL, GL_DYNAMIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
+    
+    // Set font size (adjust as needed)
+    //FT_Set_Pixel_Sizes(face, 0, 48);
 
-
-    // Game loop
+    // render loop
+    // -----------
     while (!glfwWindowShouldClose(window))
     {
-        // Calculate deltatime of current frame
-        GLfloat currentFrame = glfwGetTime();
+        // per-frame time logic
+        // --------------------
+        float currentFrame = static_cast<float>(glfwGetTime());
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
-        // Check if any events have been activiated (key pressed, mouse moved etc.) and call corresponding response functions
-        glfwPollEvents();
-        do_movement();
+        // input
+        // -----
+        processInput(window);
 
-        // Clear the colorbuffer
-        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        // render
+        // ------
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        //glClear(GL_COLOR_BUFFER_BIT);
 
-        // Use cooresponding shader when setting uniforms/drawing objects
-        lightingShader.Use();
-        GLint objectColorLoc = glGetUniformLocation(lightingShader.Program, "objectColor");
-        GLint lightColorLoc  = glGetUniformLocation(lightingShader.Program, "lightColor");
-        GLint lightPosLoc    = glGetUniformLocation(lightingShader.Program, "lightPos");
-        GLint viewPosLoc     = glGetUniformLocation(lightingShader.Program, "viewPos");
-        glUniform3f(objectColorLoc, 1.0f, 0.5f, 0.31f);
-        glUniform3f(lightColorLoc,  1.0f, 1.0f, 1.0f);
-        glUniform3f(lightPosLoc,    lightPos.x, lightPos.y, lightPos.z);
-        glUniform3f(viewPosLoc,     camera.Position.x, camera.Position.y, camera.Position.z);
+        //---------------------
+        // CUBE 1
+        //---------------------
 
+        // lighting
+        glm::vec3 lightPos0(-2.0f, -1.0f, 2.0f);
 
+        // be sure to activate shader when setting uniforms/drawing objects
+        lightingShader.use();
+        lightingShader.setVec3("objectColor", 1.0f, 0.5f, 0.31f);
+        lightingShader.setVec3("lightColor", 1.0f, 1.0f, 1.0f);
+        lightingShader.setVec3("lightPos", lightPos0);
+        lightingShader.setVec3("viewPos", camera.Position);
+        lightingShader.setInt("shininess", 32);
 
-        // Create camera transformations
-        glm::mat4 view;
+        // view/projection transformations
+        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+        glm::mat4 view = camera.GetViewMatrix();
+        lightingShader.setMat4("projection", projection);
+        lightingShader.setMat4("view", view);
+
+        // Define the translation vector
+        glm::vec3 translation0(-3.0f, -1.0f, 0.0f);
+
+        // world transformation
+        glm::mat4 model = glm::mat4(1.0f);
+        float angle = glm::radians(30.0f); // 10 degrees
+        glm::vec3 axis(0.0f, 1.0f, 0.0f); // Rotate around the Y-axis
+
+        // world transformation
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, translation0); // Apply the translation
+        model = glm::rotate(model, angle, axis); // Apply the rotation transformation to the model matrix
+        lightingShader.setMat4("model", model);
+
+        // render the cube
+        glBindVertexArray(cubeVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        //---------------------
+        // CUBE Creation
+        //---------------------
+
+        // lighting
+        glm::vec3 lightPos1(-0.4f, -1.0f, 2.0f);
+
+        // be sure to activate shader when setting uniforms/drawing objects
+        lightingShader.use();
+        lightingShader.setVec3("objectColor", 1.0f, 0.5f, 0.31f);
+        lightingShader.setVec3("lightColor", 1.0f, 1.0f, 1.0f);
+        lightingShader.setVec3("lightPos", lightPos1);
+        lightingShader.setVec3("viewPos", camera.Position);
+        lightingShader.setInt("shininess", 64);
+
+        // view/projection transformations
+        projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
         view = camera.GetViewMatrix();
-        glm::mat4 projection = glm::perspective(camera.Zoom, (GLfloat)WIDTH / (GLfloat)HEIGHT, 0.1f, 100.0f);
-        // Get the uniform locations
-        GLint modelLoc = glGetUniformLocation(lightingShader.Program, "model");
-        GLint viewLoc  = glGetUniformLocation(lightingShader.Program,  "view");
-        GLint projLoc  = glGetUniformLocation(lightingShader.Program,  "projection");
-        // Pass the matrices to the shader
-        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
-        glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+        lightingShader.setMat4("projection", projection);
+        lightingShader.setMat4("view", view);
 
-        // Draw the container (using container's vertex attributes)
-        glBindVertexArray(containerVAO);
-        glm::mat4 model;
-        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+        // Define the translation vector
+        glm::vec3 translation1(-1.0f, -1.0f, 0.0f);
+
+        angle = glm::radians(17.5f); // 5 degrees
+
+        // world transformation
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, translation1); // Apply the translation
+        model = glm::rotate(model, angle, axis); // Apply the rotation transformation to the model matrix
+        lightingShader.setMat4("model", model);
+
+        // render the cube
+        glBindVertexArray(cubeVAO);
         glDrawArrays(GL_TRIANGLES, 0, 36);
-        glBindVertexArray(0);
 
-        // Also draw the lamp object, again binding the appropriate shader
-        lampShader.Use();
-        // Get location objects for the matrices on the lamp shader (these could be different on a different shader)
-        modelLoc = glGetUniformLocation(lampShader.Program, "model");
-        viewLoc  = glGetUniformLocation(lampShader.Program, "view");
-        projLoc  = glGetUniformLocation(lampShader.Program, "projection");
-        // Set matrices
-        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
-        glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
-        model = glm::mat4();
-        model = glm::translate(model, lightPos);
-        model = glm::scale(model, glm::vec3(0.2f)); // Make it a smaller cube
-        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-        // Draw the light object (using light's vertex attributes)
-        glBindVertexArray(lightVAO);
+        //---------------------
+        // CUBE Creation
+        //---------------------
+
+        // lighting
+        glm::vec3 lightPos2(1.3f, -1.0f, 2.0f);
+
+        // be sure to activate shader when setting uniforms/drawing objects
+        lightingShader.use();
+        lightingShader.setVec3("objectColor", 1.0f, 0.5f, 0.31f);
+        lightingShader.setVec3("lightColor", 1.0f, 1.0f, 1.0f);
+        lightingShader.setVec3("lightPos", lightPos2);
+        lightingShader.setVec3("viewPos", camera.Position);
+        lightingShader.setInt("shininess", 128);
+
+        // view/projection transformations
+        projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+        view = camera.GetViewMatrix();
+        lightingShader.setMat4("projection", projection);
+        lightingShader.setMat4("view", view);
+
+        // Define the translation vector
+        glm::vec3 translation2(1.0f, -1.0f, 0.0f);
+
+        angle = glm::radians(8.0f); // 2.5 degrees
+
+        // world transformation
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, translation2); // Apply the translation
+        model = glm::rotate(model, angle, axis); // Apply the rotation transformation to the model matrix
+        lightingShader.setMat4("model", model);
+
+        // render the cube
+        glBindVertexArray(cubeVAO);
         glDrawArrays(GL_TRIANGLES, 0, 36);
-        glBindVertexArray(0);
 
-        // Swap the screen buffers
+        //---------------------
+        // CUBE Creation
+        //---------------------
+
+        // lighting
+        glm::vec3 lightPos3(3.1f, -1.0f, 2.0f);
+
+        // be sure to activate shader when setting uniforms/drawing objects
+        lightingShader.use();
+        lightingShader.setVec3("objectColor", 1.0f, 0.5f, 0.31f);
+        lightingShader.setVec3("lightColor", 1.0f, 1.0f, 1.0f);
+        lightingShader.setVec3("lightPos", lightPos3);
+        lightingShader.setVec3("viewPos", camera.Position);
+        lightingShader.setInt("shininess", 256);
+
+        // view/projection transformations
+        projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+        view = camera.GetViewMatrix();
+        lightingShader.setMat4("projection", projection);
+        lightingShader.setMat4("view", view);
+
+        // Define the translation vector
+        glm::vec3 translation3(3.0f, -1.0f, 0.0f);
+
+        angle = glm::radians(0.0f); // 1.25 degrees
+
+        // world transformation
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, translation3); // Apply the translation
+        model = glm::rotate(model, angle, axis); // Apply the rotation transformation to the model matrix
+        lightingShader.setMat4("model", model);
+
+        // render the cube
+        glBindVertexArray(cubeVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+
+        //---------------------
+        // CUBE 1
+        //---------------------
+
+        // lighting
+        glm::vec3 lightPos4(-2.0f, 1.0f, 2.0f);
+
+        // be sure to activate shader when setting uniforms/drawing objects
+        lightingShader.use();
+        lightingShader.setVec3("objectColor", 1.0f, 0.5f, 0.31f);
+        lightingShader.setVec3("lightColor", 1.0f, 1.0f, 1.0f);
+        lightingShader.setVec3("lightPos", lightPos4);
+        lightingShader.setVec3("viewPos", camera.Position);
+        lightingShader.setInt("shininess", 2);
+
+        // view/projection transformations
+        projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+        view = camera.GetViewMatrix();
+        lightingShader.setMat4("projection", projection);
+        lightingShader.setMat4("view", view);
+
+        // Define the translation vector
+        glm::vec3 translation4(-3.0f, 1.0f, 0.0f);
+
+        angle = glm::radians(30.0f); // 25.0 degrees
+
+        // world transformation
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, translation4); // Apply the translation
+        model = glm::rotate(model, angle, axis); // Apply the rotation transformation to the model matrix
+        lightingShader.setMat4("model", model);
+
+
+        // render the cube
+        glBindVertexArray(cubeVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        //---------------------
+        // CUBE Creation
+        //---------------------
+
+        // lighting
+        glm::vec3 lightPos5(-0.4f, 1.0f, 2.0f);
+
+        // be sure to activate shader when setting uniforms/drawing objects
+        lightingShader.use();
+        lightingShader.setVec3("objectColor", 1.0f, 0.5f, 0.31f);
+        lightingShader.setVec3("lightColor", 1.0f, 1.0f, 1.0f);
+        lightingShader.setVec3("lightPos", lightPos5);
+        lightingShader.setVec3("viewPos", camera.Position);
+        lightingShader.setInt("shininess", 4);
+
+        // view/projection transformations
+        projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+        view = camera.GetViewMatrix();
+        lightingShader.setMat4("projection", projection);
+        lightingShader.setMat4("view", view);
+
+        // Define the translation vector
+        glm::vec3 translation5(-1.0f, 1.0f, 0.0f);
+
+        angle = glm::radians(17.5f); // 1.25 degrees
+
+        // world transformation
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, translation5); // Apply the translation
+        model = glm::rotate(model, angle, axis); // Apply the rotation transformation to the model matrix
+        lightingShader.setMat4("model", model);
+
+        // render the cube
+        glBindVertexArray(cubeVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+
+
+        // lighting
+        glm::vec3 lightPos0(-2.0f, -1.0f, 2.0f);
+
+        // be sure to activate shader when setting uniforms/drawing objects
+        lightingShader.use();
+        lightingShader.setVec3("objectColor", 1.0f, 0.5f, 0.31f);
+        lightingShader.setVec3("lightColor", 1.0f, 1.0f, 1.0f);
+        lightingShader.setVec3("lightPos", lightPos0);
+        lightingShader.setVec3("viewPos", camera.Position);
+        lightingShader.setInt("shininess", 32);
+
+        // view/projection transformations
+        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+        glm::mat4 view = camera.GetViewMatrix();
+        lightingShader.setMat4("projection", projection);
+        lightingShader.setMat4("view", view);
+
+        // Define the translation vector
+        glm::vec3 translation0(-3.0f, -1.0f, 0.0f);
+
+        // world transformation
+        glm::mat4 model = glm::mat4(1.0f);
+        float angle = glm::radians(30.0f); // 10 degrees
+        glm::vec3 axis(0.0f, 1.0f, 0.0f); // Rotate around the Y-axis
+
+        // world transformation
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, translation0); // Apply the translation
+        model = glm::rotate(model, angle, axis); // Apply the rotation transformation to the model matrix
+        lightingShader.setMat4("model", model);
+
+        // render the cube
+        glBindVertexArray(cubeVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        //---------------------
+        // CUBE Creation
+        //---------------------
+
+        // lighting
+        glm::vec3 lightPos6(1.3f, 1.0f, 2.0f);
+
+        // be sure to activate shader when setting uniforms/drawing objects
+        lightingShader.use();
+        lightingShader.setVec3("objectColor", 1.0f, 0.5f, 0.31f);
+        lightingShader.setVec3("lightColor", 1.0f, 1.0f, 1.0f);
+        lightingShader.setVec3("lightPos", lightPos6);
+        lightingShader.setVec3("viewPos", camera.Position);
+        lightingShader.setInt("shininess", 8);
+
+        // view/projection transformations
+        projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+        view = camera.GetViewMatrix();
+        lightingShader.setMat4("projection", projection);
+        lightingShader.setMat4("view", view);
+
+        // Define the translation vector
+        glm::vec3 translation6(1.0f, 1.0f, 0.0f);
+
+        angle = glm::radians(8.0f); // 1.25 degrees
+
+        // world transformation
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, translation6); // Apply the translation
+        model = glm::rotate(model, angle, axis); // Apply the rotation transformation to the model matrix
+        lightingShader.setMat4("model", model);
+
+        // render the cube
+        glBindVertexArray(cubeVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        //---------------------
+        // CUBE Creation
+        //---------------------
+
+        // lighting
+        glm::vec3 lightPos7(3.1f, 1.0f, 2.0f);
+
+        // be sure to activate shader when setting uniforms/drawing objects
+        lightingShader.use();
+        lightingShader.setVec3("objectColor", 1.0f, 0.5f, 0.31f);
+        lightingShader.setVec3("lightColor", 1.0f, 1.0f, 1.0f);
+        lightingShader.setVec3("lightPos", lightPos7);
+        lightingShader.setVec3("viewPos", camera.Position);
+
+        // view/projection transformations
+        projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+        view = camera.GetViewMatrix();
+        lightingShader.setMat4("projection", projection);
+        lightingShader.setMat4("view", view);
+        lightingShader.setInt("shininess", 16);
+
+        // Define the translation vector
+        glm::vec3 translation7(3.0f, 1.0f, 0.0f);
+
+        angle = glm::radians(0.0f); // 1.25 degrees
+
+        // world transformation
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, translation7); // Apply the translation
+        model = glm::rotate(model, angle, axis); // Apply the rotation transformation to the model matrix
+        lightingShader.setMat4("model", model);
+
+        // render the cube
+        glBindVertexArray(cubeVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        // Render text
+        //textShader.use(); //Unnecessary, already covered by renderText()
+        renderText(textShader, "2",   175.0f, 300.0f, 0.5f, glm::vec3(1.0f, 1.0f, 1.0f), face);
+        renderText(textShader, "4",   320.0f, 300.0f, 0.5f, glm::vec3(1.0f, 1.0f, 1.0f), face);
+        renderText(textShader, "8",   465.0f, 300.0f, 0.5f, glm::vec3(1.0f, 1.0f, 1.0f), face);
+        renderText(textShader, "16",  610.0f, 300.0f, 0.5f, glm::vec3(1.0f, 1.0f, 1.0f), face);
+        renderText(textShader, "32",  175.0f, 150.0f, 0.5f, glm::vec3(1.0f, 1.0f, 1.0f), face);
+        renderText(textShader, "64",  320.0f, 150.0f, 0.5f, glm::vec3(1.0f, 1.0f, 1.0f), face);
+        renderText(textShader, "128", 465.0f, 150.0f, 0.5f, glm::vec3(1.0f, 1.0f, 1.0f), face);
+        renderText(textShader, "256", 610.0f, 150.0f, 0.5f, glm::vec3(1.0f, 1.0f, 1.0f), face);
+
+        // Set up vertex data (and buffer(s)) and attribute pointers
+        // GLfloat verticesNum[] = {
+        //     // Positions          // Colors           // Texture Coords
+        //     0.5f,  0.5f, 0.0f,   1.0f, 0.0f, 0.0f,   1.0f, 1.0f, // Top Right
+        //     0.5f, -0.5f, 0.0f,   0.0f, 1.0f, 0.0f,   1.0f, 0.0f, // Bottom Right
+        //     -0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f, // Bottom Left
+        //     -0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 0.0f,   0.0f, 1.0f  // Top Left 
+        // };
+        // GLuint indicesNum[] = {  // Note that we start from 0!
+        //     0, 1, 3, // First Triangle
+        //     1, 2, 3  // Second Triangle
+        // };
+        // GLuint VBO, VAO, EBO;
+        // glGenVertexArrays(1, &VAO);
+        // glGenBuffers(1, &VBO);
+        // glGenBuffers(1, &EBO);
+
+        // glBindVertexArray(VAO);
+
+        // glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        // glBufferData(GL_ARRAY_BUFFER, sizeof(verticesNum), verticesNum, GL_STATIC_DRAW);
+        // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+        // glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indicesNum), indicesNum, GL_STATIC_DRAW);
+
+        
+
+        // Position attribute
+        // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)0);
+        // glEnableVertexAttribArray(0);
+        // // Color attribute
+        // glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
+        // glEnableVertexAttribArray(1);
+        // // TexCoord attribute
+        // glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)(6 * sizeof(GLfloat)));
+        // glEnableVertexAttribArray(2);
+
+        // glBindVertexArray(0); // Unbind VAO
+
+        // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
+        // -------------------------------------------------------------------------------
         glfwSwapBuffers(window);
+        glfwPollEvents();
     }
 
-    // Terminate GLFW, clearing any resources allocated by GLFW.
+    // optional: de-allocate all resources once they've outlived their purpose:
+    // ------------------------------------------------------------------------
+    glDeleteVertexArrays(1, &cubeVAO);
+    glDeleteVertexArrays(1, &lightCubeVAO);
+    glDeleteBuffers(1, &VBO);
+
+    // Cleanup FreeType resources
+    // FT_Done_Face(face);
+    // FT_Done_FreeType(ft);
+
+    // glfw: terminate, clearing all previously allocated GLFW resources.
+    // ------------------------------------------------------------------
     glfwTerminate();
     return 0;
 }
 
-// Is called whenever a key is pressed/released via GLFW
-void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode)
+// Function to render text
+// render line of text
+// -------------------
+void renderText(Shader &shader, std::string text, float x, float y, float scale, glm::vec3 color, FT_Face face)
 {
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, GL_TRUE);
-    if (key >= 0 && key < 1024)
+    // activate corresponding render state	
+    shader.use();
+    glUniform3f(glGetUniformLocation(shader.ID, "textColor"), color.x, color.y, color.z);
+    glActiveTexture(GL_TEXTURE0);
+    glBindVertexArray(VAO);
+
+    // iterate through all characters
+    std::string::const_iterator c;
+    for (c = text.begin(); c != text.end(); c++) 
     {
-        if (action == GLFW_PRESS)
-            keys[key] = true;
-        else if (action == GLFW_RELEASE)
-            keys[key] = false;
+        Character ch = Characters[*c];
+
+        float xpos = x + ch.Bearing.x * scale;
+        float ypos = y - (ch.Size.y - ch.Bearing.y) * scale;
+
+        float w = ch.Size.x * scale;
+        float h = ch.Size.y * scale;
+        // update VBO for each character
+        float vertices[6][4] = {
+            { xpos,     ypos + h,   0.0f, 0.0f },            
+            { xpos,     ypos,       0.0f, 1.0f },
+            { xpos + w, ypos,       1.0f, 1.0f },
+
+            { xpos,     ypos + h,   0.0f, 0.0f },
+            { xpos + w, ypos,       1.0f, 1.0f },
+            { xpos + w, ypos + h,   1.0f, 0.0f }           
+        };
+        // render glyph texture over quad
+        glBindTexture(GL_TEXTURE_2D, ch.TextureID);
+        // update content of VBO memory
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices); // be sure to use glBufferSubData and not glBufferData
+
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        // render quad
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        // now advance cursors for next glyph (note that advance is number of 1/64 pixels)
+        x += (ch.Advance >> 6) * scale; // bitshift by 6 to get value in pixels (2^6 = 64 (divide amount of 1/64th pixels by 64 to get amount of pixels))
+    }
+    glBindVertexArray(0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+// void renderText(const std::string& text, float x, float y, float scale, const glm::vec3& color, FT_Face face)
+// {
+//     float textVertices[] = {
+//         // Vertex attributes for a quad (x, y, s, t)
+//         // positions           // texture coordinates
+//         0.0f, 1.0f, 0.0f, 1.0f,
+//         1.0f, 0.0f, 1.0f, 0.0f,
+//         0.0f, 0.0f, 0.0f, 0.0f,
+
+//         0.0f, 1.0f, 0.0f, 1.0f,
+//         1.0f, 1.0f, 1.0f, 1.0f,
+//         1.0f, 0.0f, 1.0f, 0.0f
+//     };
+
+//     float vertices[] = {
+//         // Vertex attributes for a quad (x, y, s, t)
+//         // positions           // texture coordinates
+//         0.0f, 1.0f, 0.0f, 1.0f,
+//         1.0f, 0.0f, 1.0f, 0.0f,
+//         0.0f, 0.0f, 0.0f, 0.0f,
+
+//         0.0f, 1.0f, 0.0f, 1.0f,
+//         1.0f, 1.0f, 1.0f, 1.0f,
+//         1.0f, 0.0f, 1.0f, 0.0f
+//     };
+
+//     for (unsigned int i = 0; i < text.length(); i++)
+//     {
+//         unsigned int textVBO, textVAO;
+//         glGenVertexArrays(1, &textVAO);
+//         glGenBuffers(1, &textVBO);
+
+//         // Bind the VAO and VBO
+//         glBindVertexArray(textVAO);
+//         glBindBuffer(GL_ARRAY_BUFFER, textVBO);
+
+//         // Allocate memory for the text VBO and provide data
+//         glBufferData(GL_ARRAY_BUFFER, sizeof(textVertices), textVertices, GL_DYNAMIC_DRAW);
+
+//         // Set the vertex attribute pointers for the text
+//         glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+//         glEnableVertexAttribArray(0);
+
+//         // Unbind the VBO and VAO
+//         glBindBuffer(GL_ARRAY_BUFFER, 0);
+//         glBindVertexArray(0);
+
+//         char c = text[i];
+
+//         // Load character glyph 
+//         if (FT_Load_Char(face, c, FT_LOAD_RENDER))
+//         {
+//             std::cerr << "Error: Failed to load character glyph" << std::endl;
+//             continue;
+//         }
+
+//         // Generate texture
+//         GLuint texture;
+//         glGenTextures(1, &texture);
+//         glBindTexture(GL_TEXTURE_2D, texture);
+//         glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, face->glyph->bitmap.width, face->glyph->bitmap.rows, 0, GL_RED, GL_UNSIGNED_BYTE, face->glyph->bitmap.buffer);
+
+//         // Set texture options
+//         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+//         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+//         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+//         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+//         // Render glyph texture over quad
+//         glBindVertexArray(textVAO);
+//         // Update content of VBO memory
+//         glBindBuffer(GL_ARRAY_BUFFER, textVBO);
+//         glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+
+//         // Render quad
+//         glDrawArrays(GL_TRIANGLES, 0, 6);
+//     }
+// }
+
+// process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
+// ---------------------------------------------------------------------------------------------------------
+void processInput(GLFWwindow *window)
+{
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, true);
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+        camera.ProcessKeyboard(FORWARD, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        camera.ProcessKeyboard(BACKWARD, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        camera.ProcessKeyboard(LEFT, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        camera.ProcessKeyboard(RIGHT, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS)
+    {
+        std::cout << "Enter a shininess value: ";
+        std::cin >> shininess_value;
+        std::cout << "The shininess value is: " << shininess_value;
     }
 }
 
-void do_movement()
+// glfw: whenever the window size changed (by OS or user resize) this callback function executes
+// ---------------------------------------------------------------------------------------------
+void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
-    // Camera controls
-    if (keys[GLFW_KEY_W])
-        camera.ProcessKeyboard(FORWARD, deltaTime);
-    if (keys[GLFW_KEY_S])
-        camera.ProcessKeyboard(BACKWARD, deltaTime);
-    if (keys[GLFW_KEY_A])
-        camera.ProcessKeyboard(LEFT, deltaTime);
-    if (keys[GLFW_KEY_D])
-        camera.ProcessKeyboard(RIGHT, deltaTime);
+    // make sure the viewport matches the new window dimensions; note that width and 
+    // height will be significantly larger than specified on retina displays.
+    glViewport(0, 0, width, height);
 }
 
-bool firstMouse = true;
-void mouse_callback(GLFWwindow* window, double xpos, double ypos)
+
+// glfw: whenever the mouse moves, this callback is called
+// -------------------------------------------------------
+void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
 {
+    return;
+    float xpos = static_cast<float>(xposIn);
+    float ypos = static_cast<float>(yposIn);
     if (firstMouse)
     {
         lastX = xpos;
@@ -265,17 +873,34 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
         firstMouse = false;
     }
 
-    GLfloat xoffset = xpos - lastX;
-    GLfloat yoffset = lastY - ypos;  // Reversed since y-coordinates go from bottom to left
+    float xoffset = xpos - lastX;
+    float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
 
     lastX = xpos;
     lastY = ypos;
 
-    camera.ProcessMouseMovement(xoffset, yoffset);
+    camera.ProcessMouseMovement(xoffset/10, yoffset/10);
 }
 
+// glfw: whenever the mouse scroll wheel scrolls, this callback is called
+// ----------------------------------------------------------------------
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
-    camera.ProcessMouseScroll(yoffset);
+    camera.ProcessMouseScroll(static_cast<float>(yoffset));
 }
 
+void use3DMode()
+{
+    glEnable(GL_DEPTH_TEST);
+}
+
+void use2DMode()
+{
+    glDisable(GL_DEPTH_TEST);
+
+}
+
+void render3DScene()
+{
+    
+}
