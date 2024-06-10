@@ -5,18 +5,14 @@ Professor Citro
 Public GitHub Link: https://github.com/hydrenoid/CST-310
 
 Objective:
-The objective of this assignment is to add in functionality to the two prebuilt programs.
+The objective of this assignment is to create a 3D animation.
 
 Files:
-Project7.docx $ contains the report and analysis of the project as a whole.
+Project8.docx $ contains the report and analysis of the project as a whole.
 
-ColorCubeFlyby.cpp # source code for the animated cube.
+LorenzAttractor.cpp # source code for the animated cube.
 
-CheckeredTriangles.cpp # source code for the checkered triangles.
-
-check # executable that runs the checkered triangles.
-
-cube # executable that runs the animated cube.
+lorenz_attractor # executable that runs the animation program.
 
 Environment:
 These programs were developed using Parallels Desktop off a 2022 Macbook Pro M2, running Ubuntu 22.04.
@@ -36,7 +32,7 @@ freeglut 2.8.1-6
 
 Execution: 
 First you must compile the source code using this command:
-g++ -o <name_of_executable> <name_of_source_code>.cpp -lglut -lGL -lGLU
+g++ -o <name_of_executable> <name_of_source_code>.cpp -lglfw -lGLEW -lGL -lGLU
 
 Then you can run it like this:
 ./<name_of_executable>
