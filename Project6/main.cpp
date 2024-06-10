@@ -59,6 +59,13 @@ unsigned int VBO, cubeVAO, VAO;
 
 int main()
 {
+
+    std::cout << "Interaction:" << std::endl;
+    std::cout << "Use w, s to zoom in and out." << std::endl;
+    std::cout << "Use a, d to move the scene left and right." << std::endl;
+    std::cout << "Use g, l to increase/decrease shininess on bottom right cube." << std::endl;
+
+
     // glfw: initialize and configure
     // ------------------------------
     glfwInit();
@@ -423,7 +430,7 @@ int main()
         lightingShader.setVec3("lightColor", 1.0f, 1.0f, 1.0f);
         lightingShader.setVec3("lightPos", lightPos3);
         lightingShader.setVec3("viewPos", camera.Position);
-        lightingShader.setInt("shininess", 256);
+        lightingShader.setInt("shininess", shininess_value);
 
         // view/projection transformations
         projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
@@ -521,42 +528,6 @@ int main()
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
 
-
-        // lighting
-        glm::vec3 lightPos0(-2.0f, -1.0f, 2.0f);
-
-        // be sure to activate shader when setting uniforms/drawing objects
-        lightingShader.use();
-        lightingShader.setVec3("objectColor", 1.0f, 0.5f, 0.31f);
-        lightingShader.setVec3("lightColor", 1.0f, 1.0f, 1.0f);
-        lightingShader.setVec3("lightPos", lightPos0);
-        lightingShader.setVec3("viewPos", camera.Position);
-        lightingShader.setInt("shininess", 32);
-
-        // view/projection transformations
-        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-        glm::mat4 view = camera.GetViewMatrix();
-        lightingShader.setMat4("projection", projection);
-        lightingShader.setMat4("view", view);
-
-        // Define the translation vector
-        glm::vec3 translation0(-3.0f, -1.0f, 0.0f);
-
-        // world transformation
-        glm::mat4 model = glm::mat4(1.0f);
-        float angle = glm::radians(30.0f); // 10 degrees
-        glm::vec3 axis(0.0f, 1.0f, 0.0f); // Rotate around the Y-axis
-
-        // world transformation
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, translation0); // Apply the translation
-        model = glm::rotate(model, angle, axis); // Apply the rotation transformation to the model matrix
-        lightingShader.setMat4("model", model);
-
-        // render the cube
-        glBindVertexArray(cubeVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-
         //---------------------
         // CUBE Creation
         //---------------------
@@ -640,46 +611,6 @@ int main()
         renderText(textShader, "128", 465.0f, 150.0f, 0.5f, glm::vec3(1.0f, 1.0f, 1.0f), face);
         renderText(textShader, "256", 610.0f, 150.0f, 0.5f, glm::vec3(1.0f, 1.0f, 1.0f), face);
 
-        // Set up vertex data (and buffer(s)) and attribute pointers
-        // GLfloat verticesNum[] = {
-        //     // Positions          // Colors           // Texture Coords
-        //     0.5f,  0.5f, 0.0f,   1.0f, 0.0f, 0.0f,   1.0f, 1.0f, // Top Right
-        //     0.5f, -0.5f, 0.0f,   0.0f, 1.0f, 0.0f,   1.0f, 0.0f, // Bottom Right
-        //     -0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f, // Bottom Left
-        //     -0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 0.0f,   0.0f, 1.0f  // Top Left 
-        // };
-        // GLuint indicesNum[] = {  // Note that we start from 0!
-        //     0, 1, 3, // First Triangle
-        //     1, 2, 3  // Second Triangle
-        // };
-        // GLuint VBO, VAO, EBO;
-        // glGenVertexArrays(1, &VAO);
-        // glGenBuffers(1, &VBO);
-        // glGenBuffers(1, &EBO);
-
-        // glBindVertexArray(VAO);
-
-        // glBindBuffer(GL_ARRAY_BUFFER, VBO);
-        // glBufferData(GL_ARRAY_BUFFER, sizeof(verticesNum), verticesNum, GL_STATIC_DRAW);
-        // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-        // glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indicesNum), indicesNum, GL_STATIC_DRAW);
-
-        
-
-        // Position attribute
-        // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)0);
-        // glEnableVertexAttribArray(0);
-        // // Color attribute
-        // glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
-        // glEnableVertexAttribArray(1);
-        // // TexCoord attribute
-        // glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)(6 * sizeof(GLfloat)));
-        // glEnableVertexAttribArray(2);
-
-        // glBindVertexArray(0); // Unbind VAO
-
-        // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
-        // -------------------------------------------------------------------------------
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
@@ -748,84 +679,6 @@ void renderText(Shader &shader, std::string text, float x, float y, float scale,
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-// void renderText(const std::string& text, float x, float y, float scale, const glm::vec3& color, FT_Face face)
-// {
-//     float textVertices[] = {
-//         // Vertex attributes for a quad (x, y, s, t)
-//         // positions           // texture coordinates
-//         0.0f, 1.0f, 0.0f, 1.0f,
-//         1.0f, 0.0f, 1.0f, 0.0f,
-//         0.0f, 0.0f, 0.0f, 0.0f,
-
-//         0.0f, 1.0f, 0.0f, 1.0f,
-//         1.0f, 1.0f, 1.0f, 1.0f,
-//         1.0f, 0.0f, 1.0f, 0.0f
-//     };
-
-//     float vertices[] = {
-//         // Vertex attributes for a quad (x, y, s, t)
-//         // positions           // texture coordinates
-//         0.0f, 1.0f, 0.0f, 1.0f,
-//         1.0f, 0.0f, 1.0f, 0.0f,
-//         0.0f, 0.0f, 0.0f, 0.0f,
-
-//         0.0f, 1.0f, 0.0f, 1.0f,
-//         1.0f, 1.0f, 1.0f, 1.0f,
-//         1.0f, 0.0f, 1.0f, 0.0f
-//     };
-
-//     for (unsigned int i = 0; i < text.length(); i++)
-//     {
-//         unsigned int textVBO, textVAO;
-//         glGenVertexArrays(1, &textVAO);
-//         glGenBuffers(1, &textVBO);
-
-//         // Bind the VAO and VBO
-//         glBindVertexArray(textVAO);
-//         glBindBuffer(GL_ARRAY_BUFFER, textVBO);
-
-//         // Allocate memory for the text VBO and provide data
-//         glBufferData(GL_ARRAY_BUFFER, sizeof(textVertices), textVertices, GL_DYNAMIC_DRAW);
-
-//         // Set the vertex attribute pointers for the text
-//         glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
-//         glEnableVertexAttribArray(0);
-
-//         // Unbind the VBO and VAO
-//         glBindBuffer(GL_ARRAY_BUFFER, 0);
-//         glBindVertexArray(0);
-
-//         char c = text[i];
-
-//         // Load character glyph 
-//         if (FT_Load_Char(face, c, FT_LOAD_RENDER))
-//         {
-//             std::cerr << "Error: Failed to load character glyph" << std::endl;
-//             continue;
-//         }
-
-//         // Generate texture
-//         GLuint texture;
-//         glGenTextures(1, &texture);
-//         glBindTexture(GL_TEXTURE_2D, texture);
-//         glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, face->glyph->bitmap.width, face->glyph->bitmap.rows, 0, GL_RED, GL_UNSIGNED_BYTE, face->glyph->bitmap.buffer);
-
-//         // Set texture options
-//         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-//         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-//         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-//         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-//         // Render glyph texture over quad
-//         glBindVertexArray(textVAO);
-//         // Update content of VBO memory
-//         glBindBuffer(GL_ARRAY_BUFFER, textVBO);
-//         glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
-
-//         // Render quad
-//         glDrawArrays(GL_TRIANGLES, 0, 6);
-//     }
-// }
 
 // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
 // ---------------------------------------------------------------------------------------------------------
@@ -843,9 +696,17 @@ void processInput(GLFWwindow *window)
         camera.ProcessKeyboard(RIGHT, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS)
     {
-        std::cout << "Enter a shininess value: ";
-        std::cin >> shininess_value;
-        std::cout << "The shininess value is: " << shininess_value;
+        shininess_value += 1;
+        if (shininess_value > 256){
+            shininess_value = 256;
+        }
+    }
+    if (glfwGetKey(window, GLFW_KEY_L) == GLFW_PRESS)
+    {
+        shininess_value -= 1;
+        if (shininess_value < 1){
+            shininess_value = 1;
+        }
     }
 }
 
