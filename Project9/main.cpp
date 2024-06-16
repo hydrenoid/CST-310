@@ -154,7 +154,7 @@ int main() {
         glfwPollEvents(); // Callback glfwPollEvents to check for events
         do_movement(); // Callback do_movement()
 
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f); // Set background color
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f); // Set background color
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear buffers
 
         
@@ -187,7 +187,7 @@ int main() {
         for (int i = 0; i < 8; i++) { // For 8 rows
             for (int j = 0; j < 8; j++) { // For 8 columns
                 if ((i+j) % 2 == 0) { // Check if i+j is odd or even for color purposes
-                    glUniform3f(squareColorLoc, 1.0f, 0.0f, 1.0f); // If even square color is purple --> pass purple to uniform
+                    glUniform3f(squareColorLoc, 1.0f, 0.0f, 0.0f); // If even square color is purple --> pass purple to uniform
                 } else {
                     glUniform3f(squareColorLoc, 1.0f, 1.0f, 1.0f); // If even square color is white --> pas white to uniform
                 }
@@ -214,7 +214,7 @@ int main() {
         viewPosLoc = glGetUniformLocation(cubeShader.Program, "viewPos"); // Reset uniform location for cubeShader
 
         // Pass to shaders
-        glUniform3f(cubeColorLoc, 1.0f, 0.0f, 0.0f); // Pass cube color to uniform
+        glUniform3f(cubeColorLoc, 0.0f, 0.0f, 1.0f); // Pass cube color to uniform
         glUniform3f(lightColorLoc, 1.0f, 1.0f, 1.0f); // Pass light color to uniform
         glUniform3f(lightPosLoc, lightPos.x, lightPos.y, lightPos.z); // Pass light position to uniform
         glUniform3f(viewPosLoc, camera.Position.x, camera.Position.y, camera.Position.z); // Pass camera position to uniform
@@ -243,7 +243,7 @@ int main() {
         lightPosLoc = glGetUniformLocation(cylinderShader.Program, "lightPos"); // Reset lightPos location
         viewPosLoc = glGetUniformLocation(cylinderShader.Program, "viewPos"); // Reset viewPos location
 
-        glUniform3f(cylinderColorLoc, 0.0f, 1.0f, 0.0f); // Pass color to uniform
+        glUniform3f(cylinderColorLoc, 1.0f, 1.0f, 0.0f); // Pass color to uniform
         glUniform3f(lightColorLoc, 1.0f, 1.0f, 1.0f); // Pass light color to uniform
         glUniform3f(lightPosLoc, lightPos.x, lightPos.y, lightPos.z); // Pass light position to uniform
         glUniform3f(viewPosLoc, camera.Position.x, camera.Position.y, camera.Position.z); // Pass camera position to uniform
@@ -253,7 +253,7 @@ int main() {
         projLoc = glGetUniformLocation(cylinderShader.Program, "projection"); // Reset view location for cylinderShader
 
         glm::mat4 view_cylinder = view; // Create mat4 view_cylinder using generic view identity
-        view_cylinder = glm::translate(view_cylinder, glm::vec3(1.2f, -3.0f, -5.5f)); // Translate cylinder back, to the right, and down
+        view_cylinder = glm::translate(view_cylinder, glm::vec3(-1.7f, -3.0f, -5.5f)); // Translate cylinder back, to the right, and down
         view_cylinder = glm::scale(view_cylinder, glm::vec3(0.5, 3.0, 0.5)); // Increase height of cylinder
 
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view_cylinder)); // Pass view_cylinder to shader
@@ -271,7 +271,7 @@ int main() {
         lightPosLoc = glGetUniformLocation(sphereShader.Program, "lightPos"); // Reset lightPos location for sphereShader
         viewPosLoc = glGetUniformLocation(sphereShader.Program, "viewPos"); // Reset viewPos location for sphereShader
 
-        glUniform3f(sphereColorLoc, 0.0f, 0.0f, 1.0f); // Pass in sphere color to uniform
+        glUniform3f(sphereColorLoc, 0.0f, 1.0f, 0.0f); // Pass in sphere color to uniform
         glUniform3f(lightColorLoc, 1.0f, 1.0f, 1.0f); // Pass in light color to uniform
         glUniform3f(lightPosLoc, lightPos.x, lightPos.y, lightPos.z); // Pass in light position to uniform
         glUniform3f(viewPosLoc, camera.Position.x, camera.Position.y, camera.Position.z); // Pass in camera position to uniform
@@ -281,7 +281,7 @@ int main() {
         projLoc = glGetUniformLocation(sphereShader.Program, "projection"); // Reset projection uniform location for sphereShader
 
         glm::mat4 view_sphere = view; // Create mat4 view_sphere equal to view identity
-        view_sphere = glm::translate(view_sphere, glm::vec3(-1.2f, 0.0f, -5.0f)); // Translate sphere back and to the left
+        view_sphere = glm::translate(view_sphere, glm::vec3(1.2f, 0.0f, -5.0f)); // Translate sphere back and to the left
         view_sphere = glm::scale(view_sphere, glm::vec3(0.5f, 0.5f, 0.5f)); // Scale down sphere
         
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view_sphere)); // Pass view_sphere to uniform
