@@ -16,15 +16,21 @@
 #include <glm/gtc/type_ptr.hpp> // glm gtc include
 
 // Other includes
-#include "shader.h" // Include shader class
+#include "shader_m.h" // Include shader class
 #include "Camera.h" // Include Camera class
 #include "Model.h" // Include Model class
+
+#define STB_IMAGE_IMPLEMENTATION
+#include  "stb_image.h"
 
 const GLuint WIDTH = 800, HEIGHT = 600; // Global variables for width and height of window
 
 // Function prototypes
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode); // key_callback method
 void do_movement(); // Movement method
+
+unsigned int loadCubemap(vector<std::string> faces);
+unsigned int loadTexture(char const * path);
 
 Camera camera(glm::vec3(0.0f, 0.0f, 0.0f)); // Sets iniital camera pos (0, 0, 0)
 GLfloat lastX = WIDTH / 2.0; // Used for camera motion
@@ -62,13 +68,60 @@ int main() {
 
     // INSERT SHADERS HERE FOR PROJECT 10
     Shader checkerboardShader("checkerboard.vs", "checkerboard.frag"); // Create shader for checkerboard
-    Shader cubeShader("cube.vs", "cube.frag"); // Create shader for cube object
-    Shader cylinderShader("cylinder.vs", "cylinder.frag"); // Create shader for cylinder object
-    Shader sphereShader("sphere.vs", "sphere.frag"); // Create shader for sphere object
+    Shader cubeShader("cubemap.vs", "cubemap.fs"); // Create shader for cube object
+    Shader cylinderShader("bump.vs", "bump.frag"); // Create shader for cylinder object
+    Shader sphereShader("bump.vs", "bump.frag"); // Create shader for sphere object
+
+
 
     // Models for Cylinder and Sphere
-    Model cylinderModel("cylinder.obj"); // Defines model for cylinder using obj
-    Model sphereModel("sphere.obj"); // Define model for sphere using obj
+    Model cylinderModel((char *)"cylinder.obj"); // Defines model for cylinder using obj
+    Model sphereModel((char *)"sphere.obj"); // Define model for sphere using obj
+
+    float cubeVertices[] = {
+       // positions          // normals
+        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+         0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+         0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+         0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+
+        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+         0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+         0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+         0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+
+        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+        -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+        -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+
+         0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+         0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+         0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+         0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+         0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+         0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+
+        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+         0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+         0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+         0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+
+        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+         0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+         0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+         0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f
+    };
 
     GLfloat vertices[] = {
         // Coordinates: 3 Position, 3 Color, 2 Texture
@@ -143,6 +196,37 @@ int main() {
 
     // DEFINE TEXTURES HERE Project 10 --> NOTE FOR PROJECT 10
 
+    unsigned int cubeVAO, cubeVBO;
+    glGenVertexArrays(1, &cubeVAO);
+    glGenBuffers(1, &cubeVBO);
+    glBindVertexArray(cubeVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), &cubeVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+
+    vector<std::string> faces
+	{
+    		"posx.jpg",
+        	"negx.jpg",
+        	"posy.jpg",
+        	"negy.jpg",
+        	"posz.jpg",
+        	"negz.jpg"
+	};
+
+    unsigned int cubemapTexture = loadCubemap(faces);
+    cubeShader.use(); // Activate cube shader
+    cubeShader.setInt("skybox",0);
+
+    unsigned int cylinderTexture = loadTexture("Bump-Map.jpg");
+    cylinderShader.use();
+
+    unsigned int sphereTexture = loadTexture("Bump-Picture.jpg");
+    sphereShader.use();
+
     // Game Loop
     while (!glfwWindowShouldClose(window)) {
         // Calculate deltaTime for camera movement
@@ -167,12 +251,12 @@ int main() {
         // BIND TEXTURES HERE PROJECT 10
 
         // CHECKERBOARD
-        checkerboardShader.Use(); // Use checkerboard shader
+        checkerboardShader.use(); // Use checkerboard shader
 
-        GLint squareColorLoc = glGetUniformLocation(checkerboardShader.Program, "squareColor"); // Retrieve uniform location for squareColor
-        GLint lightColorLoc = glGetUniformLocation(checkerboardShader.Program, "lightColor"); // Retrieve uniform location for lightColor
-        GLint lightPosLoc = glGetUniformLocation(checkerboardShader.Program, "lightPos"); // Retrieve uniform location for lightPos
-        GLint viewPosLoc = glGetUniformLocation(checkerboardShader.Program, "viewPos"); // Retrieve uniform location for viewPos
+        GLint squareColorLoc = glGetUniformLocation(checkerboardShader.ID, "squareColor"); // Retrieve uniform location for squareColor
+        GLint lightColorLoc = glGetUniformLocation(checkerboardShader.ID, "lightColor"); // Retrieve uniform location for lightColor
+        GLint lightPosLoc = glGetUniformLocation(checkerboardShader.ID, "lightPos"); // Retrieve uniform location for lightPos
+        GLint viewPosLoc = glGetUniformLocation(checkerboardShader.ID, "viewPos"); // Retrieve uniform location for viewPos
 
         glUniform3f(lightColorLoc, 1.0f, 1.0f, 1.0f); // Pass white color to lightColorLoc uniform
         glUniform3f(lightPosLoc, lightPos.x, lightPos.y, lightPos.z); // Pass light position to lightPosLoc uniform
@@ -180,9 +264,9 @@ int main() {
 
         glm::mat4 view_square = view; // Create mat4 view_square equal to view generic defined above
 
-        GLint modelLoc = glGetUniformLocation(checkerboardShader.Program, "model"); // Retrieve model uniform location
-        GLint viewLoc = glGetUniformLocation(checkerboardShader.Program, "view"); // Retrieve view uniform location
-        GLint projLoc = glGetUniformLocation(checkerboardShader.Program, "projection"); // Retrieve projection uniform location
+        GLint modelLoc = glGetUniformLocation(checkerboardShader.ID, "model"); // Retrieve model uniform location
+        GLint viewLoc = glGetUniformLocation(checkerboardShader.ID, "view"); // Retrieve view uniform location
+        GLint projLoc = glGetUniformLocation(checkerboardShader.ID, "projection"); // Retrieve projection uniform location
 
         for (int i = 0; i < 8; i++) { // For 8 rows
             for (int j = 0; j < 8; j++) { // For 8 columns
@@ -203,95 +287,91 @@ int main() {
                 
             }
         }
-
+        glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);  // Bind VBO
+        glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), cubeVertices, GL_STATIC_DRAW);  // Buffer Data
         // CUBE
-        cubeShader.Use(); // Activate cube shader
+        cubeShader.use(); // Activate cube shader
 
-        // Set uniform locations
-        GLint cubeColorLoc = glGetUniformLocation(cubeShader.Program, "cubeColor"); // Retrieve uniform location
-        lightColorLoc = glGetUniformLocation(cubeShader.Program, "lightColor"); // Reset uniform location for cubeShader
-        lightPosLoc = glGetUniformLocation(cubeShader.Program, "lightPos"); // Reset uniform location for cubeShader
-        viewPosLoc = glGetUniformLocation(cubeShader.Program, "viewPos"); // Reset uniform location for cubeShader
-
-        // Pass to shaders
-        glUniform3f(cubeColorLoc, 0.0f, 0.0f, 1.0f); // Pass cube color to uniform
-        glUniform3f(lightColorLoc, 1.0f, 1.0f, 1.0f); // Pass light color to uniform
-        glUniform3f(lightPosLoc, lightPos.x, lightPos.y, lightPos.z); // Pass light position to uniform
-        glUniform3f(viewPosLoc, camera.Position.x, camera.Position.y, camera.Position.z); // Pass camera position to uniform
+        model = glm::mat4(1.0f);
+        view = camera.GetViewMatrix();
+        projection = glm::perspective(45.0f, (GLfloat)WIDTH / (GLfloat)HEIGHT, 0.1f, 100.0f);
+        cubeShader.setMat4("model", model);
+        cubeShader.setMat4("view", view);
+        cubeShader.setMat4("projection", projection);
 
         glm::mat4 view_cube = view; // Create mat4 view_cube equal to identity view
         view_cube = glm::translate(view_cube, glm::vec3(0.0f, 0.0f, -5.0f)); // Translate cube back
-
-        // Get uniform location
-        modelLoc = glGetUniformLocation(cubeShader.Program, "model"); // Reset modelLoc using cubeShader
-        viewLoc = glGetUniformLocation(cubeShader.Program, "view"); // Reset viewLoc using cubeShader
-        projLoc = glGetUniformLocation(cubeShader.Program, "projection"); // Reset projLoc using cubeShader
-        // Pass locations to shader
-        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model)); // Pass model to shader
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view_cube)); // Pass view_cube to shader
-        glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection)); // Pass projection to shader
+
         // Draw cube
-        glBindVertexArray(VAO); // Bind vertex arrays
+        glBindVertexArray(cubeVAO); // Bind vertex arrays
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
         glDrawArrays(GL_TRIANGLES, 0, 36); // Draw cube
+        glBindVertexArray(0);
 
         
         // CYLINDER
-        cylinderShader.Use(); // Activate cylinder shader
+        cylinderShader.use(); // Activate cylinder shader
 
-        GLint cylinderColorLoc = glGetUniformLocation(cylinderShader.Program, "cylinderColor"); // Retrieve cylinderColor location
-        lightColorLoc = glGetUniformLocation(cylinderShader.Program, "lightColor"); // Reset lightColor location
-        lightPosLoc = glGetUniformLocation(cylinderShader.Program, "lightPos"); // Reset lightPos location
-        viewPosLoc = glGetUniformLocation(cylinderShader.Program, "viewPos"); // Reset viewPos location
+        GLint cylinderColorLoc = glGetUniformLocation(cylinderShader.ID, "cylinderColor"); // Retrieve cylinderColor location
+        lightColorLoc = glGetUniformLocation(cylinderShader.ID, "lightColor"); // Reset lightColor location
+        lightPosLoc = glGetUniformLocation(cylinderShader.ID, "lightPos"); // Reset lightPos location
+        viewPosLoc = glGetUniformLocation(cylinderShader.ID, "viewPos"); // Reset viewPos location
 
-        glUniform3f(cylinderColorLoc, 1.0f, 1.0f, 0.0f); // Pass color to uniform
+        glUniform3f(cylinderColorLoc, 0.0f, 1.0f, 0.0f); // Pass color to uniform
         glUniform3f(lightColorLoc, 1.0f, 1.0f, 1.0f); // Pass light color to uniform
         glUniform3f(lightPosLoc, lightPos.x, lightPos.y, lightPos.z); // Pass light position to uniform
         glUniform3f(viewPosLoc, camera.Position.x, camera.Position.y, camera.Position.z); // Pass camera position to uniform
 
-        modelLoc = glGetUniformLocation(cylinderShader.Program, "model"); // Reset view location for cylinderShader
-        viewLoc = glGetUniformLocation(cylinderShader.Program, "view"); // Reset view location for cylinderShader
-        projLoc = glGetUniformLocation(cylinderShader.Program, "projection"); // Reset view location for cylinderShader
+        modelLoc = glGetUniformLocation(cylinderShader.ID, "model"); // Reset view location for cylinderShader
+        viewLoc = glGetUniformLocation(cylinderShader.ID, "view"); // Reset view location for cylinderShader
+        projLoc = glGetUniformLocation(cylinderShader.ID, "projection"); // Reset view location for cylinderShader
 
         glm::mat4 view_cylinder = view; // Create mat4 view_cylinder using generic view identity
-        view_cylinder = glm::translate(view_cylinder, glm::vec3(-1.7f, -3.0f, -5.5f)); // Translate cylinder back, to the right, and down
+        view_cylinder = glm::translate(view_cylinder, glm::vec3(1.2f, -3.0f, -5.5f)); // Translate cylinder back, to the right, and down
         view_cylinder = glm::scale(view_cylinder, glm::vec3(0.5, 3.0, 0.5)); // Increase height of cylinder
 
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view_cylinder)); // Pass view_cylinder to shader
         glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection)); // Pass projection to shader
         glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model)); // Pass moel to shader
 
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, cylinderTexture);
         cylinderModel.Draw(cylinderShader); // Draw obj model
 
-        
         // SPHERE
-        sphereShader.Use(); // Activate sphereShader
+        sphereShader.use(); // Activate sphereShader
 
-        GLint sphereColorLoc = glGetUniformLocation(sphereShader.Program, "sphereColor"); // Retrieve sphereColor location
-        lightColorLoc = glGetUniformLocation(sphereShader.Program, "lightColor"); // Reset lightColor location for sphereShader
-        lightPosLoc = glGetUniformLocation(sphereShader.Program, "lightPos"); // Reset lightPos location for sphereShader
-        viewPosLoc = glGetUniformLocation(sphereShader.Program, "viewPos"); // Reset viewPos location for sphereShader
+        GLint sphereColorLoc = glGetUniformLocation(sphereShader.ID, "sphereColor"); // Retrieve sphereColor location
+        lightColorLoc = glGetUniformLocation(sphereShader.ID, "lightColor"); // Reset lightColor location for sphereShader
+        lightPosLoc = glGetUniformLocation(sphereShader.ID, "lightPos"); // Reset lightPos location for sphereShader
+        viewPosLoc = glGetUniformLocation(sphereShader.ID, "viewPos"); // Reset viewPos location for sphereShader
 
-        glUniform3f(sphereColorLoc, 0.0f, 1.0f, 0.0f); // Pass in sphere color to uniform
+        glUniform3f(sphereColorLoc, 0.0f, 0.0f, 1.0f); // Pass in sphere color to uniform
         glUniform3f(lightColorLoc, 1.0f, 1.0f, 1.0f); // Pass in light color to uniform
         glUniform3f(lightPosLoc, lightPos.x, lightPos.y, lightPos.z); // Pass in light position to uniform
         glUniform3f(viewPosLoc, camera.Position.x, camera.Position.y, camera.Position.z); // Pass in camera position to uniform
 
-        modelLoc = glGetUniformLocation(sphereShader.Program, "model"); // Reset model uniform location for sphereShader
-        viewLoc = glGetUniformLocation(sphereShader.Program, "view"); // Reset view uniform location for sphereShader
-        projLoc = glGetUniformLocation(sphereShader.Program, "projection"); // Reset projection uniform location for sphereShader
+        modelLoc = glGetUniformLocation(sphereShader.ID, "model"); // Reset model uniform location for sphereShader
+        viewLoc = glGetUniformLocation(sphereShader.ID, "view"); // Reset view uniform location for sphereShader
+        projLoc = glGetUniformLocation(sphereShader.ID, "projection"); // Reset projection uniform location for sphereShader
 
         glm::mat4 view_sphere = view; // Create mat4 view_sphere equal to view identity
-        view_sphere = glm::translate(view_sphere, glm::vec3(1.2f, 0.0f, -5.0f)); // Translate sphere back and to the left
+        view_sphere = glm::translate(view_sphere, glm::vec3(-1.2f, 0.0f, -5.0f)); // Translate sphere back and to the left
         view_sphere = glm::scale(view_sphere, glm::vec3(0.5f, 0.5f, 0.5f)); // Scale down sphere
-        
+
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view_sphere)); // Pass view_sphere to uniform
         glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection)); // Pass projection to uniform
         glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model)); // Pass model to uniform
 
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, sphereTexture);
         sphereModel.Draw(sphereShader); // Draw sphere obj model
 
         glBindVertexArray(0); // Bind zero at end
         glfwSwapBuffers(window); // Swap screen buffers
+
 
     }
     // Deallocate resources
@@ -301,6 +381,74 @@ int main() {
     return 0; // Returns 0 for end of int main()
 
 }
+
+unsigned int loadTexture(char const * path)
+{
+    unsigned int textureID;
+    glGenTextures(1, &textureID);
+
+    int width, height, nrComponents;
+    unsigned char *data = stbi_load(path, &width, &height, &nrComponents, 0);
+    if (data)
+    {
+        GLenum format;
+        if (nrComponents == 1)
+            format = GL_RED;
+        else if (nrComponents == 3)
+            format = GL_RGB;
+        else if (nrComponents == 4)
+            format = GL_RGBA;
+
+        glBindTexture(GL_TEXTURE_2D, textureID);
+        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        stbi_image_free(data);
+    }
+    else
+    {
+        std::cout << "Texture failed to load at path: " << path << std::endl;
+        stbi_image_free(data);
+    }
+
+    return textureID;
+}
+
+unsigned int loadCubemap(vector<std::string> faces)
+{
+    unsigned int textureID;
+    glGenTextures(1, &textureID);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
+
+    int width, height, nrChannels;
+    for (unsigned int i = 0; i < faces.size(); i++)
+    {
+        unsigned char *data = stbi_load(faces[i].c_str(), &width, &height, &nrChannels, 0);
+        if (data)
+        {
+            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+            stbi_image_free(data);
+        }
+        else
+        {
+            std::cout << "Cubemap tex failed to load at path: " << faces[i] << std::endl;
+            stbi_image_free(data);
+        }
+    }
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+    return textureID;
+}
+
 
 // Method for key input
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode) {
