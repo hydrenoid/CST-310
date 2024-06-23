@@ -8,7 +8,7 @@ Objective:
 The objective of this assignment is to implement more advanced shaders onto 3D objects and planes.
 
 Files:
-Project9.docx $ contains the report and analysis of the project as a whole.
+Project10.docx $ contains the report and analysis of the project as a whole.
 
 main.cpp # source code for the scene.
 
